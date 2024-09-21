@@ -17,7 +17,7 @@ target_mission = [-1, -1, -1, -1]
 
 
 class Steer_PID_controller(object):
-    def __init__(self, node_car, k_p=0.015, k_i=0.002, k_d=0.002, d_t=0.05):  # 手动调节参数k_p、k_i、k_d
+    def __init__(self, node_car, k_p=0.010, k_i=0.0008, k_d=0.001, d_t=0.05):  # 手动调节参数k_p、k_i、k_d
         """
         采用PID进行纵向速度控制，包括比例项P、积分项I、微分项D
         ego_vehicle: 是carla中的主车
@@ -60,7 +60,7 @@ class Steer_PID_controller(object):
 
 
 class Parking_PID_controller(object):  # 纵向控制
-    def __init__(self, node_car, k_p=0.202, k_i=5.50, k_d=0.012, d_t=0.01):  # 手动调节参数k_p、k_i、k_d
+    def __init__(self, node_car, k_p=0.165, k_i=5.10, k_d=10.186, d_t=0.01):  # 手动调节参数k_p、k_i、k_d
         """
         采用PID进行纵向速度控制，包括比例项P、积分项I、微分项D
         ego_vehicle: 是carla中的主车
@@ -173,7 +173,7 @@ class Vehicle_control(object):
 
         self.vehicle = ego_vehicle  # ego_vehicle是carla中的主车
         self.max_throttle = 1  # 最大油门 = 1，最小油门 = 0
-        self.max_brake = 1  # 最大刹车 = 1，最小刹车 = 0
+        self.min_throttle = -1  # 最大刹车 = 1，最小刹车 = 0
         self.max_steer = 1  # 最大转角 = 1
         self.min_steer = -1  # 最小转角 = 1
         self.Path = pathway  # 目标路径
@@ -215,6 +215,7 @@ class Vehicle_control(object):
         if target_point[3] == 'D':
             if abs(target_point[0] - (self.vehicle.get_location()[0])) < 6:
                 self.Path_index += 1
+            target_speed = target_point[2] * driver_mode  # 计算需要控制的最大目标速度
 
         # 停车车速控制
         if target_point[3] == 'P':
@@ -223,35 +224,105 @@ class Vehicle_control(object):
             global target_mission
             if target_mission[int(self.node_no) - 1] == 0:  # 跳过停车点，等待下次放行任务
                 self.Path_index += 1
+                lock.acquire()
                 target_mission[int(self.node_no - 1)] = -1
-            if target_mission[int(self.node_no - 1)] < 0 and error < 0.1:  # 初始为-1，自己完成后改为1，放行改为0
-                target_mission[int(self.node_no - 1)] = 1
+                lock.release()
 
-        else:
-            target_speed = target_point[2] * driver_mode  # 计算需要控制的最大目标速度
-        steer_r = self.Lateral_control.PID_control(target_angle)  # 返回横向控制的转角
-        acceleration_r, v_now = self.Longitudinal_control.PID_control(target_speed)  # 返回纵向控制的油门
+            elif target_mission[int(self.node_no - 1)] == -1 and error < 0.6:  # 初始为-1，自己完成后改为1，放行改为0
+                lock.acquire()
+                target_mission[int(self.node_no - 1)] = 1
+                lock.release()
+
+        steer = self.Lateral_control.PID_control(target_angle)  # 返回横向控制的转角
+        throttle, v_now = self.Longitudinal_control.PID_control(target_speed)  # 返回纵向控制的油门
+
         # 横向控制限定范围
         if v_now < 0:  # 速度向后时，反向控制方向
-            steer_r = 0 - steer_r
-        if steer_r >= 0:
-            self.vehicle.set_vehicle_steer(min(self.max_steer, steer_r))
-        else:
-            self.vehicle.set_vehicle_steer(max(self.min_steer, steer_r))
+            steer = 0 - steer
+
+        if steer >= 0 and throttle >= 0:
+            self.vehicle.apply_control(min(self.max_throttle, throttle), min(self.max_steer, steer), 0, 0, 1)
+        if steer >= 0 and throttle <= 0:
+            self.vehicle.apply_control(max(self.min_throttle, throttle), min(self.max_steer, steer), 0, 0, 1)
+        if steer <= 0 and throttle <= 0:
+            self.vehicle.apply_control(max(self.min_throttle, throttle), max(self.min_steer, steer), 0, 0, 1)
+        if steer <= 0 and throttle >= 0:
+            self.vehicle.apply_control(min(self.max_throttle, throttle), max(self.min_steer, steer), 0, 0, 1)
         time.sleep(0.1)
-        # 纵向控制限定范围
-        if acceleration_r >= 0:
-            self.vehicle.control_vehicle(min(self.max_throttle, acceleration_r))
-            time.sleep(0.1)
-            self.vehicle.set_vehicle_brake(0)
-            time.sleep(0.1)
-        else:
-            self.vehicle.control_vehicle(min(self.max_throttle, acceleration_r))
-            time.sleep(0.1)
-            self.vehicle.set_vehicle_brake(0)
-            time.sleep(0.1)
-            # self.vehicle.set_vehicle_brake(max(self.max_brake, acceleration_r))
-        time.sleep(0.02)
+
+
+def sdk_get_map(client, entity_name):
+    # sdk读取环境信息，需要 1.0.1 sdk 才支持
+    timestamp, world, code = client.get_world()
+    objects = world.get_environment_objects()
+
+    return list(filter(lambda x: (x.name.startswith(entity_name)), objects))
+
+
+def create_path(client, node_start_location, new_nodes):
+    SM_Wall_Single = sdk_get_map(client, 'SM_Wall_Single')  # 两面墙位置
+    SM_Obstacles = sdk_get_map(client, 'SM_Obstacle')  # 障碍物位置
+
+    obstacles = []
+    for obj in SM_Obstacles:
+        obs_loc = obj.transform.location
+        obs = (obs_loc.x, obs_loc.y, obs_loc.z)
+        obstacles.append(obs)
+
+    sorted_positions = sorted(obstacles, key=lambda pos: pos[0])
+    min_obs = sorted_positions[0]
+
+    s_1_x = node_start_location[0] + 244
+    s_1_y = node_start_location[1] + 5
+
+    wall_1_extent = SM_Wall_Single[0].bounding_box.extent
+    wall_1_x = SM_Wall_Single[0].transform.location.x  # 火力掩护区地址
+    wall_1_y = SM_Wall_Single[0].transform.location.y
+
+    wall_2_extent = SM_Wall_Single[1].bounding_box.extent
+    wall_2_x = SM_Wall_Single[1].transform.location.x  # 敌方火力区地址
+    wall_2_y = SM_Wall_Single[1].transform.location.y
+
+    obs_x = min_obs[0]  # 区域三
+    obs_y = min_obs[1]
+
+    node_1 = new_nodes[0].get_location()
+    node_2 = new_nodes[1].get_location()
+    node_3 = new_nodes[2].get_location()
+    node_4 = new_nodes[3].get_location()
+
+    target_path_01 = [[node_1[0] + 20, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 12, 'D'],
+                      [wall_1_x - 100, wall_1_y, 10, 'D'],
+                      [wall_1_x - 20, wall_1_y, 5, 'P'],
+                      [wall_1_x - 100, wall_1_y, 6, 'D'], [wall_2_x - 35, wall_2_y, 8, 'D'],
+                      [wall_2_x - 15, wall_2_y + 15, 12, 'D'],
+                      [wall_2_x + 285, wall_2_y + 15, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+
+    target_path_02 = [[node_2[0] + 20, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'],
+                      [wall_1_x - 169, wall_1_y, 12, 'D'],
+                      [wall_1_x - 105, wall_1_y, 10, 'D'], [wall_1_x - 25, wall_1_y, 5, 'P'],
+                      [wall_1_x - 105, wall_1_y, 6, 'D'], [wall_2_x - 40, wall_2_y, 8, 'D'],
+                      [wall_2_x - 20, wall_2_y + 15, 12, 'D'],
+                      [wall_2_x + 280, wall_2_y + 15, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+
+    target_path_03 = [[node_3[0] + 20, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'],
+                      [wall_1_x - 164, wall_1_y + 5, 12, 'D'],
+                      [wall_1_x - 100, wall_1_y + 5, 10, 'D'], [wall_1_x - 20, wall_1_y + 5, 5, 'P'],
+                      [wall_1_x - 100, wall_1_y + 5, 6, 'D'], [wall_2_x - 35, wall_2_y + 5, 8, 'D'],
+                      [wall_2_x - 15, wall_2_y + 20, 12, 'D'],
+                      [wall_2_x + 285, wall_2_y + 20, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+
+    target_path_04 = [[node_4[0] + 20, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'],
+                      [wall_1_x - 169, wall_1_y + 5, 12, 'D'],
+                      [wall_1_x - 105, wall_1_y + 5, 10, 'D'], [wall_1_x - 25, wall_1_y + 5, 5, 'P'],
+                      [wall_1_x - 105, wall_1_y + 5, 6, 'D'], [wall_2_x - 40, wall_2_y + 5, 8, 'D'],
+                      [wall_2_x - 20, wall_2_y + 20, 12, 'D'],
+                      [wall_2_x + 280, wall_2_y + 20, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+
+    target_paths = [target_path_01, target_path_02, target_path_03, target_path_04]
+    print(target_paths)
+
+    return target_paths
 
 
 def main():
@@ -302,6 +373,8 @@ def main():
         def control_vehicle(node, command):
             node.control_vehicle(command)
 
+        node_start_location = nodes[0].get_location()
+
         # 创建线程列表
         threads = []
         # 为每个节点创建并启动一个线程
@@ -309,10 +382,11 @@ def main():
             thread = threading.Thread(target=control_vehicle, args=(node, 0.5))
             threads.append(thread)
             thread.start()
+            time.sleep(0.1)
         # 等待所有线程完成
         for thread in threads:
             thread.join()
-        time.sleep(15)
+        time.sleep(16)
 
         # 随机损坏一辆车（正式测试时需要注释这段代码）
         numbers = [1, 2, 3, 4, 5]
@@ -325,17 +399,17 @@ def main():
                 time.sleep(0.2)
                 node.set_vehicle_brake(brake=1)
                 node.control_vehicle(-1)
-                time.sleep(6)
+                time.sleep(3)
 
         # 重新设置所有车辆的编号
         new_nodes = []
         for i, node in enumerate(nodes):
-            # if node.get_health()[0] == 0:  正式测试时需要使用这个 条件
+            # if node.get_health()[0] != 0:  正式测试时需要使用这个 条件
             if i != selected_number - 1:
                 new_nodes.append(node)
 
         # 将速度拉下来，让小车保持距离
-        speed = 0.5
+        speed = 0.4
         # 创建一个线程池
         with ThreadPoolExecutor(max_workers=len(new_nodes)) as executor:
             # 创建一个字典来存储 future 对象和它们对应的速度
@@ -343,13 +417,13 @@ def main():
             for node in new_nodes:
                 throttle_value = speed
                 futures[executor.submit(control_vehicle, node, throttle_value)] = throttle_value
-                speed -= 0.1
+                speed -= 0.07
 
             # 等待所有线程完成
             for future in concurrent.futures.as_completed(futures):
                 throttle_value = futures[future]
-                time.sleep(1.5)
-        time.sleep(1.2)
+                time.sleep(1)
+        time.sleep(1)
 
         with ThreadPoolExecutor(max_workers=len(new_nodes)) as executor:
             # 创建一个字典来存储 future 对象和它们对应的速度
@@ -364,32 +438,33 @@ def main():
         time.sleep(2)
 
         # 输出路径点和详细信息格式为[x,y,speed,D/P] D目标点后继续前进 P为目标的需要停止
-        target_path_01 = [[840, 446, 6, 'P'], [930, 439, 10, 'D'], [1110, 417, 10, 'D'],
-                          [1210, 417, 10, 'D'],
-                          [1257, 416, 6, 'P'], [1210, 417, 6, 'D'], [1230, 439, 6, 'D'], [1250, 450, 6, 'D'],
-                          [1350, 450, 6, 'P'], [1600, 437, 10, 'D']]
+        # target_path_01 = [[840, 446, 5, 'P'], [930, 439, 10, 'D'], [1110, 417, 10, 'D'],
+        #                   [1210, 417, 10, 'D'],
+        #                   [1257, 416, 6, 'P'], [1210, 417, 6, 'D'], [1230, 439, 6, 'D'], [1250, 450, 6, 'D'],
+        #                   [1350, 450, 6, 'P'], [1600, 437, 10, 'D']]
+        #
+        # target_path_02 = [[834.7, 446, 5, 'P'], [925, 439, 10, 'D'], [1105, 417, 10, 'D'],
+        #                   [1205, 417, 10, 'D'],
+        #                   [1252, 416, 6, 'P'], [1205, 417, 6, 'D'], [1225, 439, 6, 'D'], [1245, 450, 6, 'D'],
+        #                   [1345, 450, 6, 'P'], [1600, 437, 10, 'D']]
+        #
+        # target_path_03 = [[840, 451, 5, 'P'], [930, 444, 10, 'D'], [1110, 422, 10, 'D'],
+        #                   [1210, 422, 10, 'D'],
+        #                   [1257, 421, 6, 'P'], [1210, 422, 6, 'D'], [1230, 444, 6, 'D'], [1250, 455, 6, 'D'],
+        #                   [1350, 455, 6, 'P'], [1600, 437, 10, 'D']]
+        #
+        # target_path_04 = [[834.7, 451, 5, 'P'], [925, 444, 10, 'D'], [1105, 422, 10, 'D'],
+        #                   [1205, 422, 10, 'D'],
+        #                   [1252, 421, 6, 'P'], [1205, 422, 6, 'D'], [1225, 444, 6, 'D'], [1245, 455, 6, 'D'],
+        #                   [1345, 455, 6, 'P'], [1600, 437, 10, 'D']]
 
-        target_path_02 = [[834.7, 446, 6, 'P'], [925, 439, 10, 'D'], [1105, 417, 10, 'D'],
-                          [1205, 417, 10, 'D'],
-                          [1252, 416, 6, 'P'], [1205, 417, 6, 'D'], [1225, 439, 6, 'D'], [1245, 450, 6, 'D'],
-                          [1345, 450, 6, 'P'], [1600, 437, 10, 'D']]
-
-        target_path_03 = [[840, 451, 6, 'P'], [930, 444, 10, 'D'], [1110, 422, 10, 'D'],
-                          [1210, 422, 10, 'D'],
-                          [1257, 421, 6, 'P'], [1210, 422, 6, 'D'], [1230, 444, 6, 'D'], [1250, 455, 6, 'D'],
-                          [1350, 455, 6, 'P'], [1600, 437, 10, 'D']]
-
-        target_path_04 = [[834.7, 451, 6, 'P'], [925, 444, 10, 'D'], [1105, 422, 10, 'D'],
-                          [1205, 422, 10, 'D'],
-                          [1252, 421, 6, 'P'], [1205, 422, 6, 'D'], [1225, 444, 6, 'D'], [1245, 455, 6, 'D'],
-                          [1345, 455, 6, 'P'], [1600, 437, 10, 'D']]
-
+        target_paths = create_path(client, node_start_location, new_nodes)
         # # 车辆控制
         timestamp, world, code = client.get_world()
-        control_object_01 = Vehicle_control(new_nodes[0], target_path_01, 1, world)
-        control_object_02 = Vehicle_control(new_nodes[1], target_path_02, 2, world)
-        control_object_03 = Vehicle_control(new_nodes[2], target_path_03, 3, world)
-        control_object_04 = Vehicle_control(new_nodes[3], target_path_04, 4, world)
+        control_object_01 = Vehicle_control(new_nodes[0], target_paths[0], 1, world)
+        control_object_02 = Vehicle_control(new_nodes[1], target_paths[1], 2, world)
+        control_object_03 = Vehicle_control(new_nodes[2], target_paths[2], 3, world)
+        control_object_04 = Vehicle_control(new_nodes[3], target_paths[3], 4, world)
 
         def vcontrol_1():
             while True:
@@ -418,7 +493,7 @@ def main():
                 global target_mission
                 if sum(target_mission) == 4 and count == 0:
                     count += 1
-                    time.sleep(2.5)  # 任务1完成6秒后出发
+                    time.sleep(2)  # 任务1完成6秒后出发
 
                     lock.acquire()
                     target_mission[0] = 0
@@ -441,7 +516,7 @@ def main():
 
                 if sum(target_mission) == 4 and count == 1:
                     count += 1
-                    time.sleep(6)
+                    time.sleep(3)
                     target_mission = [0, 0, 0, 0]
 
                 if sum(target_mission) == 4 and count == 2:
@@ -478,8 +553,6 @@ def main():
         t3.start()
         t4.start()
         t5.start()
-
-        print("路线结束，开始手动控制")
     finally:
         print('main() end')
 

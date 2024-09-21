@@ -41,6 +41,10 @@ def main():
         timestamp, world, code = client.get_world()
         objects = world.get_environment_objects()
 
+        for obj in objects:
+            print(obj)
+
+        print("-----------------------------------------------------")
         # 两面墙位置
         wall = list(filter(lambda x: (x.name.startswith('SM_Wall_Single')), objects))
 
@@ -58,14 +62,22 @@ def main():
         bounding_box_2 = wall[1].bounding_box
         Wall_2_location = (transform_2.location.x, transform_2.location.y)
         wall_2_size = (bounding_box_2.extent.x, bounding_box_2.extent.y)
-        print(f"Wall_2_location: {Wall_2_location}, wall_2_size: {wall_2_size}")\
-
-
+        print(f"Wall_2_location: {Wall_2_location}, wall_2_size: {wall_2_size}")
         # 获取4个固定障碍物
-        obstacles = list(filter(lambda x: (x.name.startswith('SM_Obstacle')), objects))
-        for i in range(len(obstacles)):
-            print(obstacles[i])
+        SM_Obstacles = list(filter(lambda x: (x.name.startswith('SM_Obstacle')), objects))
 
+        for obj in SM_Obstacles:
+            print(obj)
+
+        obstacles = []
+        for obj in SM_Obstacles:
+            obs_loc = obj.transform.location
+            obs = (obs_loc.x, obs_loc.y, obs_loc.z)
+            obstacles.append(obs)
+
+        sorted_positions = sorted(obstacles, key=lambda pos: pos[0])
+        min_obs = sorted_positions[0]
+        print(min_obs)
 
         # 获取临时障碍物
         temp_obstacle = world.get_targets()
