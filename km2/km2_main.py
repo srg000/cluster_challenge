@@ -6,6 +6,7 @@ import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+import bezierUtil
 
 # 线程锁
 lock = threading.Lock()
@@ -165,7 +166,7 @@ class Longitudinal_PID_controller(object):  # 纵向控制
 
 
 class Vehicle_control(object):
-    def __init__(self, ego_vehicle, pathway, node_no):
+    def __init__(self, ego_vehicle, pathway, node_no, world):
         """
         初始化车辆的油门范围、转角范围、刹车范围
         """
@@ -178,6 +179,8 @@ class Vehicle_control(object):
         self.Path = pathway  # 目标路径
         self.Path_index = 0  # 路径起始点
         self.node_no = node_no
+        self.world = world
+        self.flag = 0
         self.Lateral_control = Steer_PID_controller(ego_vehicle)
         self.Longitudinal_control = Longitudinal_PID_controller(ego_vehicle)
         self.Parking_control = Parking_PID_controller(ego_vehicle)
@@ -199,6 +202,13 @@ class Vehicle_control(object):
         """
         函数：计算横向控制与纵向控制的流程
         """
+        # 如果路径已经走完，则重新生成新的路径
+        if self.Path_index >= len(self.Path) and self.flag == 0:
+            new_line = bezierUtil.avoid_obstacles(self.vehicle, self.world)
+            self.Path += new_line
+            print('new line', self.Path)
+            self.flag += 1
+
         target_point = self.Path[self.Path_index]
         target_angle, driver_mode = self.angle_mode_count(target_point)
 
@@ -357,36 +367,29 @@ def main():
         target_path_01 = [[840, 446, 6, 'P'], [930, 439, 10, 'D'], [1110, 417, 10, 'D'],
                           [1210, 417, 10, 'D'],
                           [1257, 416, 6, 'P'], [1210, 417, 6, 'D'], [1230, 439, 6, 'D'], [1250, 450, 6, 'D'],
-                          [1350, 450, 6, 'P'], [1754, 439, 10, 'D'], [1807, 448, 10, 'D'],
-                          [1842, 450, 10, 'D'],
-                          [1942, 450, 10, 'D']]
+                          [1350, 450, 6, 'P'], [1600, 437, 10, 'D']]
 
         target_path_02 = [[834.7, 446, 6, 'P'], [925, 439, 10, 'D'], [1105, 417, 10, 'D'],
                           [1205, 417, 10, 'D'],
                           [1252, 416, 6, 'P'], [1205, 417, 6, 'D'], [1225, 439, 6, 'D'], [1245, 450, 6, 'D'],
-                          [1345, 450, 6, 'P'], [1754, 439, 10, 'D'], [1807, 448, 10, 'D'],
-                          [1842, 450, 10, 'D'],
-                          [1942, 450, 10, 'D']]
+                          [1345, 450, 6, 'P'], [1600, 437, 10, 'D']]
 
         target_path_03 = [[840, 451, 6, 'P'], [930, 444, 10, 'D'], [1110, 422, 10, 'D'],
                           [1210, 422, 10, 'D'],
                           [1257, 421, 6, 'P'], [1210, 422, 6, 'D'], [1230, 444, 6, 'D'], [1250, 455, 6, 'D'],
-                          [1350, 455, 6, 'P'], [1754, 439, 10, 'D'], [1807, 448, 10, 'D'],
-                          [1842, 450, 10, 'D'],
-                          [1942, 450, 10, 'D']]
+                          [1350, 455, 6, 'P'], [1600, 437, 10, 'D']]
 
         target_path_04 = [[834.7, 451, 6, 'P'], [925, 444, 10, 'D'], [1105, 422, 10, 'D'],
                           [1205, 422, 10, 'D'],
                           [1252, 421, 6, 'P'], [1205, 422, 6, 'D'], [1225, 444, 6, 'D'], [1245, 455, 6, 'D'],
-                          [1345, 455, 6, 'P'], [1754, 439, 10, 'D'], [1807, 448, 10, 'D'],
-                          [1842, 450, 10, 'D'],
-                          [1942, 450, 10, 'D']]
+                          [1345, 455, 6, 'P'], [1600, 437, 10, 'D']]
 
-        # # 车辆控制a
-        control_object_01 = Vehicle_control(new_nodes[0], target_path_01, 1)
-        control_object_02 = Vehicle_control(new_nodes[1], target_path_02, 2)
-        control_object_03 = Vehicle_control(new_nodes[2], target_path_03, 3)
-        control_object_04 = Vehicle_control(new_nodes[3], target_path_04, 4)
+        # # 车辆控制
+        timestamp, world, code = client.get_world()
+        control_object_01 = Vehicle_control(new_nodes[0], target_path_01, 1, world)
+        control_object_02 = Vehicle_control(new_nodes[1], target_path_02, 2, world)
+        control_object_03 = Vehicle_control(new_nodes[2], target_path_03, 3, world)
+        control_object_04 = Vehicle_control(new_nodes[3], target_path_04, 4, world)
 
         def vcontrol_1():
             while True:

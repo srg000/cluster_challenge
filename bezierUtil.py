@@ -44,45 +44,56 @@ def move_to_position_test(node, target_position, duration=2):
         current_yaw = node.get_attitude()[0]  # 假设 yaw 是车辆朝向的角度
 
 
-def avoid_obstacles(node, obstacles):
-    """控制小车避开障碍物"""
+def avoid_obstacles(node, world):
+    # 获取所有障碍物
+    objects = world.get_environment_objects()
+    obstacles = list(filter(lambda x: x.name.startswith('SM_Obstacle'), objects))
+
     # 获取小车位置信息
     x, y, z, frame_timestamp = node.get_location()
 
-    # 计算小车与每个障碍物的距离
-    distances = []
-    for obstacle in obstacles:
-        obstacle_location = obstacle.transform.location
-        distance = math.sqrt((x - obstacle_location.x) ** 2 + (y - obstacle_location.y) ** 2)
-        distances.append(distance)
+    # 获取临时障碍物
+    temp_obstacle = world.get_targets()
+    print('temp_obstacle', temp_obstacle)
+    # if temp_obstacle is not None:
+    #     obstacles.extend(temp_obstacle)
 
-    # 找到最近的障碍物
-    min_distance = min(distances)
-    min_index = distances.index(min_distance)
-    nearest_obstacle = obstacles[min_index]  # 获取最近的障碍物信息
-    obstacle_location = nearest_obstacle.transform.location
-    obstacle = (obstacle_location.x, obstacle_location.y)
+    # 初始化路径列表
+    new_line = []
 
-    # 判断当前车和 障碍物的关系
-    if y >= obstacle[1]:
-        direction = (obstacle_location.x, obstacle_location.y + 12)
-    elif y < obstacle[1]:
-        direction = (obstacle_location.x, obstacle_location.y - 12)
-    else:
-        direction = "forward"
-    return obstacle
+    # 循环处理每个障碍物
+    while obstacles:
+        # 计算小车与每个障碍物的距离
+        distances = [math.sqrt((x - obstacle.transform.location.x) ** 2 + (y - obstacle.transform.location.y) ** 2) for
+                     obstacle in obstacles]
 
+        # 找到最近的障碍物
+        min_distance = min(distances)
+        min_index = distances.index(min_distance)
+        nearest_obstacle = obstacles[min_index]  # 获取最近的障碍物信息
+        obstacle_location = nearest_obstacle.transform.location
+        print('obstacle_location', obstacle_location)
 
+        # 判断当前车和障碍物的关系，并生成避障路径
+        direction = None
+        if y >= obstacle_location.y:
+            direction = (obstacle_location.x, obstacle_location.y + 12)
+        else:
+            direction = (obstacle_location.x, obstacle_location.y - 12)
+        res = format_point(direction)
+        new_line.append(res)
 
-while True:
-    obstacle = avoid_obstacles(node, obstacles)
+        # 移除已处理的障碍物
+        obstacles.pop(min_index)
 
-    # 更新小车位置
-    car_location = node.get_location()
-    node.control_vehicle(car_location.x + 1, car_location.y, car_location.z)
+    last_element = new_line[-1]
+    final_last = np.array(
+        [last_element[0] + 200, last_element[1], last_element[2], last_element[3]], dtype=object
+    ).tolist()
+    new_line.append(final_last)
 
-    # 延时
-    time.sleep(1)
+    print('==============', new_line)
+    return new_line
 
 
 def bezier_curve_2d(points, t):
@@ -128,24 +139,20 @@ control_points = [
 bezier_points = get_bezier_curve_points_2d(control_points, num_points=5)
 
 
-def format_points(bezier_points, bridge_location):
+def format_point(bezier_point, speed=12):
+    return np.array([bezier_point[0], bezier_point[1], speed, 'D'], dtype=object).tolist()
+
+
+def format_points(bezier_points, speed=6):
     formatted_points = []
     target_path = []
     # 打印二维贝塞尔曲线上的点
     for point in bezier_points:
-        speed = 12 if point[0] <= -580 or point[0] >= -518 else 6
         formatted_point = np.array([point[0], point[1], speed, 'D'], dtype=object).tolist()
         formatted_points.append(formatted_point)
 
     for point in formatted_points[::-1]:
         target_path.append(point)
-    target_path.append([bridge_location[0] + 200, bridge_location[1]])
-    target_path.append([bridge_location[0] + 350, bridge_location[1]])
-    # target_path.append([bridge_location[0] + 20, bridge_location[1]])
-    # target_path.append([bridge_location[0] + 30, bridge_location[1]])
-    # target_path.append([bridge_location[0] + 40, bridge_location[1]])
-    # target_path.append([bridge_location[0] + 50, bridge_location[1]])
-    # target_path.append([bridge_location[0] + 60, bridge_location[1]])
     return target_path
 
 # formatted_points = []
