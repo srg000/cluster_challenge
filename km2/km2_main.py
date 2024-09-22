@@ -7,6 +7,8 @@ import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
+
 # 线程锁
 lock = threading.Lock()
 
@@ -249,6 +251,7 @@ class Vehicle_control(object):
             self.vehicle.apply_control(min(self.max_throttle, throttle), max(self.min_steer, steer), 0, 0, 1)
         time.sleep(0.1)
 
+
 def avoid_obstacles(node, world):
     # 获取所有障碍物
     objects = world.get_environment_objects()
@@ -265,9 +268,9 @@ def avoid_obstacles(node, world):
         # 在 每次计算最近障碍物之前，检测一遍临时障碍物，并更新障碍物列表
         temp_obstacle = world.get_targets()
         print('temp_obstacle', temp_obstacle)
-        
+
         if len(temp_obstacle) > 0:
-            print('temp_obstacle_location:==================================',temp_obstacle[0].get('location'))
+            print('temp_obstacle_location:==================================', temp_obstacle[0].get('location'))
             # obstacles.extend(temp_obstacle)
 
         # 计算小车与每个障碍物的距离
@@ -301,6 +304,10 @@ def avoid_obstacles(node, world):
 
     print('==============', new_line)
     return new_line
+
+
+def format_point(bezier_point, speed=10):
+    return np.array([bezier_point[0], bezier_point[1], speed, 'D'], dtype=object).tolist()
 
 
 def sdk_get_map(client, entity_name):
@@ -344,22 +351,29 @@ def create_path(client, node_start_location, new_nodes):
     node_4 = new_nodes[3].get_location()
 
     target_path_01 = [[node_1[0] + 10, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
-                      [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'], [wall_1_x - 70, wall_1_y, 6, 'D'], 
+                      [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'],
+                      [wall_1_x - 70, wall_1_y, 6, 'D'],
                       [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 7, 'D'],
                       [wall_2_x + 285, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 11, 'D']]
 
-    target_path_02 = [[node_2[0] + 10, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'], [wall_1_x - 169, wall_1_y, 9, 'D'],
-                      [wall_1_x - 75, wall_1_y, 10, 'D'], [wall_1_x - 35, wall_1_y, 5, 'P'], [wall_1_x - 75, wall_1_y, 6, 'D'], 
+    target_path_02 = [[node_2[0] + 10, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'],
+                      [wall_1_x - 169, wall_1_y, 9, 'D'],
+                      [wall_1_x - 75, wall_1_y, 10, 'D'], [wall_1_x - 35, wall_1_y, 5, 'P'],
+                      [wall_1_x - 75, wall_1_y, 6, 'D'],
                       [wall_2_x - 40, wall_2_y, 7, 'D'], [wall_2_x - 20, wall_2_y + 15, 7, 'D'],
                       [wall_2_x + 280, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
 
-    target_path_03 = [[node_3[0] + 10, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'], [wall_1_x - 164, wall_1_y + 5, 9, 'D'],
-                      [wall_1_x - 70, wall_1_y + 5, 10, 'D'], [wall_1_x - 30, wall_1_y + 5, 5, 'P'], [wall_1_x - 70, wall_1_y + 5, 6, 'D'], 
+    target_path_03 = [[node_3[0] + 10, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'],
+                      [wall_1_x - 164, wall_1_y + 5, 9, 'D'],
+                      [wall_1_x - 70, wall_1_y + 5, 10, 'D'], [wall_1_x - 30, wall_1_y + 5, 5, 'P'],
+                      [wall_1_x - 70, wall_1_y + 5, 6, 'D'],
                       [wall_2_x - 35, wall_2_y + 5, 7, 'D'], [wall_2_x - 15, wall_2_y + 20, 7, 'D'],
                       [wall_2_x + 285, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
 
-    target_path_04 = [[node_4[0] + 10, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'], [wall_1_x - 169, wall_1_y + 5, 9, 'D'],
-                      [wall_1_x - 75, wall_1_y + 5, 10, 'D'], [wall_1_x - 35, wall_1_y + 5, 5, 'P'], [wall_1_x - 75, wall_1_y + 5, 6, 'D'], 
+    target_path_04 = [[node_4[0] + 10, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'],
+                      [wall_1_x - 169, wall_1_y + 5, 9, 'D'],
+                      [wall_1_x - 75, wall_1_y + 5, 10, 'D'], [wall_1_x - 35, wall_1_y + 5, 5, 'P'],
+                      [wall_1_x - 75, wall_1_y + 5, 6, 'D'],
                       [wall_2_x - 40, wall_2_y + 5, 7, 'D'], [wall_2_x - 20, wall_2_y + 20, 7, 'D'],
                       [wall_2_x + 280, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
 
