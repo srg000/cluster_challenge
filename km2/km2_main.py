@@ -6,7 +6,6 @@ import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
-import bezierUtil
 
 # 线程锁
 lock = threading.Lock()
@@ -204,7 +203,7 @@ class Vehicle_control(object):
         """
         # 如果路径已经走完，则重新生成新的路径
         if self.Path_index >= len(self.Path) and self.flag == 0:
-            new_line = bezierUtil.avoid_obstacles(self.vehicle, self.world)
+            new_line = avoid_obstacles(self.vehicle, self.world)
             self.Path += new_line
             print('new line', self.Path)
             self.flag += 1
@@ -250,6 +249,59 @@ class Vehicle_control(object):
             self.vehicle.apply_control(min(self.max_throttle, throttle), max(self.min_steer, steer), 0, 0, 1)
         time.sleep(0.1)
 
+def avoid_obstacles(node, world):
+    # 获取所有障碍物
+    objects = world.get_environment_objects()
+    obstacles = list(filter(lambda x: x.name.startswith('SM_Obstacle'), objects))
+
+    # 获取小车位置信息
+    x, y, z, frame_timestamp = node.get_location()
+
+    # 初始化路径列表
+    new_line = []
+
+    # 循环处理每个障碍物
+    while obstacles:
+        # 在 每次计算最近障碍物之前，检测一遍临时障碍物，并更新障碍物列表
+        temp_obstacle = world.get_targets()
+        print('temp_obstacle', temp_obstacle)
+        
+        if len(temp_obstacle) > 0:
+            print('temp_obstacle_location:==================================',temp_obstacle[0].get('location'))
+            # obstacles.extend(temp_obstacle)
+
+        # 计算小车与每个障碍物的距离
+        distances = [math.sqrt((x - obstacle.transform.location.x) ** 2 + (y - obstacle.transform.location.y) ** 2) for
+                     obstacle in obstacles]
+
+        # 找到最近的障碍物
+        min_distance = min(distances)
+        min_index = distances.index(min_distance)
+        nearest_obstacle = obstacles[min_index]  # 获取最近的障碍物信息
+        obstacle_location = nearest_obstacle.transform.location
+        print('obstacle_location', obstacle_location)
+
+        # 判断当前车和障碍物的关系，并生成避障路径
+        direction = None
+        if y >= obstacle_location.y:
+            direction = (obstacle_location.x, obstacle_location.y + 12)
+        else:
+            direction = (obstacle_location.x, obstacle_location.y - 12)
+        res = format_point(direction)
+        new_line.append(res)
+
+        # 移除已处理的障碍物
+        obstacles.pop(min_index)
+
+    last_element = new_line[-1]
+    final_last = np.array(
+        [last_element[0] + 350, last_element[1], last_element[2] + 7, last_element[3]], dtype=object
+    ).tolist()
+    new_line.append(final_last)
+
+    print('==============', new_line)
+    return new_line
+
 
 def sdk_get_map(client, entity_name):
     # sdk读取环境信息，需要 1.0.1 sdk 才支持
@@ -272,7 +324,7 @@ def create_path(client, node_start_location, new_nodes):
     sorted_positions = sorted(obstacles, key=lambda pos: pos[0])
     min_obs = sorted_positions[0]
 
-    s_1_x = node_start_location[0] + 254
+    s_1_x = node_start_location[0] + 274
     s_1_y = node_start_location[1] + 5
 
     wall_1_extent = SM_Wall_Single[0].bounding_box.extent
@@ -291,24 +343,24 @@ def create_path(client, node_start_location, new_nodes):
     node_3 = new_nodes[2].get_location()
     node_4 = new_nodes[3].get_location()
 
-    target_path_01 = [[node_1[0] + 20, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
+    target_path_01 = [[node_1[0] + 10, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
                       [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'], [wall_1_x - 70, wall_1_y, 6, 'D'], 
-                      [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 9, 'D'],
+                      [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 7, 'D'],
                       [wall_2_x + 285, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 11, 'D']]
 
-    target_path_02 = [[node_2[0] + 20, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'], [wall_1_x - 169, wall_1_y, 9, 'D'],
+    target_path_02 = [[node_2[0] + 10, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'], [wall_1_x - 169, wall_1_y, 9, 'D'],
                       [wall_1_x - 75, wall_1_y, 10, 'D'], [wall_1_x - 35, wall_1_y, 5, 'P'], [wall_1_x - 75, wall_1_y, 6, 'D'], 
-                      [wall_2_x - 40, wall_2_y, 7, 'D'], [wall_2_x - 20, wall_2_y + 15, 9, 'D'],
+                      [wall_2_x - 40, wall_2_y, 7, 'D'], [wall_2_x - 20, wall_2_y + 15, 7, 'D'],
                       [wall_2_x + 280, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
 
-    target_path_03 = [[node_3[0] + 20, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'], [wall_1_x - 164, wall_1_y + 5, 9, 'D'],
+    target_path_03 = [[node_3[0] + 10, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'], [wall_1_x - 164, wall_1_y + 5, 9, 'D'],
                       [wall_1_x - 70, wall_1_y + 5, 10, 'D'], [wall_1_x - 30, wall_1_y + 5, 5, 'P'], [wall_1_x - 70, wall_1_y + 5, 6, 'D'], 
-                      [wall_2_x - 35, wall_2_y + 5, 7, 'D'], [wall_2_x - 15, wall_2_y + 20, 9, 'D'],
+                      [wall_2_x - 35, wall_2_y + 5, 7, 'D'], [wall_2_x - 15, wall_2_y + 20, 7, 'D'],
                       [wall_2_x + 285, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
 
-    target_path_04 = [[node_4[0] + 20, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'], [wall_1_x - 169, wall_1_y + 5, 9, 'D'],
+    target_path_04 = [[node_4[0] + 10, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'], [wall_1_x - 169, wall_1_y + 5, 9, 'D'],
                       [wall_1_x - 75, wall_1_y + 5, 10, 'D'], [wall_1_x - 35, wall_1_y + 5, 5, 'P'], [wall_1_x - 75, wall_1_y + 5, 6, 'D'], 
-                      [wall_2_x - 40, wall_2_y + 5, 7, 'D'], [wall_2_x - 20, wall_2_y + 20, 9, 'D'],
+                      [wall_2_x - 40, wall_2_y + 5, 7, 'D'], [wall_2_x - 20, wall_2_y + 20, 7, 'D'],
                       [wall_2_x + 280, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
 
     target_paths = [target_path_01, target_path_02, target_path_03, target_path_04]
@@ -381,27 +433,27 @@ def main():
         time.sleep(10)
 
         # 随机损坏一辆车（正式测试时需要注释这段代码）
-        numbers = [1, 2, 3, 4, 5]
-        selected_number = random.choice(numbers)
-        selected_number = 5
-        print(selected_number)
-        for node in nodes:
-            if int(node.get_node_info()[1]) == selected_number:
-                node.set_vehicle_steer(steer=0)
-                time.sleep(0.2)
-                node.set_vehicle_brake(brake=1)
-                node.control_vehicle(-1)
-                time.sleep(3)
+        # numbers = [1, 2, 3, 4, 5]
+        # selected_number = random.choice(numbers)
+        # selected_number = 5
+        # print(selected_number)
+        # for node in nodes:
+        #     if int(node.get_node_info()[1]) == selected_number:
+        #         node.set_vehicle_steer(steer=0)
+        #         time.sleep(0.2)
+        #         node.set_vehicle_brake(brake=1)
+        #         node.control_vehicle(-1)
+        #         time.sleep(3)
 
         # 重新设置所有车辆的编号
         new_nodes = []
         for i, node in enumerate(nodes):
-            # if node.get_health()[0] != 0:  正式测试时需要使用这个 条件
-            if i != selected_number - 1:
+            if node.get_health()[0] == 100:  # 正式测试时需要使用这个 条件
+            # if i != selected_number - 1:
                 new_nodes.append(node)
 
         # 将速度拉下来，让小车保持距离
-        speed = 0.4
+        speed = 0.38
         # 创建一个线程池
         with ThreadPoolExecutor(max_workers=len(new_nodes)) as executor:
             # 创建一个字典来存储 future 对象和它们对应的速度
@@ -409,7 +461,7 @@ def main():
             for node in new_nodes:
                 throttle_value = speed
                 futures[executor.submit(control_vehicle, node, throttle_value)] = throttle_value
-                speed -= 0.07
+                speed -= 0.082
 
             # 等待所有线程完成
             for future in concurrent.futures.as_completed(futures):
@@ -421,7 +473,7 @@ def main():
             # 创建一个字典来存储 future 对象和它们对应的速度
             futures = {}
             for node in new_nodes:
-                futures[executor.submit(control_vehicle, node, 0.15)] = throttle_value
+                futures[executor.submit(control_vehicle, node, 0.1)] = throttle_value
 
             # 等待所有线程完成
             for future in concurrent.futures.as_completed(futures):
@@ -485,7 +537,7 @@ def main():
                 global target_mission
                 if sum(target_mission) == 4 and count == 0:
                     count += 1
-                    time.sleep(1)  # 任务1完成6秒后出发
+                    time.sleep(2)  # 任务1完成6秒后出发
 
                     lock.acquire()
                     target_mission[0] = 0
@@ -508,7 +560,7 @@ def main():
 
                 if sum(target_mission) == 4 and count == 1:
                     count += 1
-                    time.sleep(0.5)
+                    time.sleep(0.01)
                     target_mission = [0, 0, 0, 0]
 
                 # if sum(target_mission) == 4 and count == 2:

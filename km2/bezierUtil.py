@@ -52,21 +52,19 @@ def avoid_obstacles(node, world):
     # 获取小车位置信息
     x, y, z, frame_timestamp = node.get_location()
 
-    # 获取临时障碍物
-    temp_obstacle = world.get_targets()
-    print('temp_obstacle', temp_obstacle)
-    # if temp_obstacle is not None:
-    #     obstacles.extend(temp_obstacle)
-
-    hostiles = node.detect_hostile_list()
-    for hostile in hostiles:
-        print('hostile', hostile)
-
     # 初始化路径列表
     new_line = []
 
     # 循环处理每个障碍物
     while obstacles:
+        # 在 每次计算最近障碍物之前，检测一遍临时障碍物，并更新障碍物列表
+        temp_obstacle = world.get_targets()
+        print('temp_obstacle', temp_obstacle)
+        
+        if len(temp_obstacle) > 0:
+            print('temp_obstacle_location:==================================',temp_obstacle[0].get('location'))
+            # obstacles.extend(temp_obstacle)
+
         # 计算小车与每个障碍物的距离
         distances = [math.sqrt((x - obstacle.transform.location.x) ** 2 + (y - obstacle.transform.location.y) ** 2) for
                      obstacle in obstacles]
@@ -92,7 +90,7 @@ def avoid_obstacles(node, world):
 
     last_element = new_line[-1]
     final_last = np.array(
-        [last_element[0] + 250, last_element[1], last_element[2] + 7, last_element[3]], dtype=object
+        [last_element[0] + 350, last_element[1], last_element[2] + 7, last_element[3]], dtype=object
     ).tolist()
     new_line.append(final_last)
 
