@@ -58,6 +58,10 @@ def avoid_obstacles(node, world):
     # if temp_obstacle is not None:
     #     obstacles.extend(temp_obstacle)
 
+    hostiles = node.detect_hostile_list()
+    for hostile in hostiles:
+        print('hostile', hostile)
+
     # 初始化路径列表
     new_line = []
 
@@ -88,7 +92,7 @@ def avoid_obstacles(node, world):
 
     last_element = new_line[-1]
     final_last = np.array(
-        [last_element[0] + 200, last_element[1], last_element[2], last_element[3]], dtype=object
+        [last_element[0] + 250, last_element[1], last_element[2] + 7, last_element[3]], dtype=object
     ).tolist()
     new_line.append(final_last)
 
@@ -139,7 +143,7 @@ control_points = [
 bezier_points = get_bezier_curve_points_2d(control_points, num_points=5)
 
 
-def format_point(bezier_point, speed=12):
+def format_point(bezier_point, speed=10):
     return np.array([bezier_point[0], bezier_point[1], speed, 'D'], dtype=object).tolist()
 
 

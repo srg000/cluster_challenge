@@ -228,7 +228,7 @@ class Vehicle_control(object):
                 target_mission[int(self.node_no - 1)] = -1
                 lock.release()
 
-            elif target_mission[int(self.node_no - 1)] == -1 and error < 0.6:  # 初始为-1，自己完成后改为1，放行改为0
+            elif target_mission[int(self.node_no - 1)] == -1 and error < 0.85:  # 初始为-1，自己完成后改为1，放行改为0
                 lock.acquire()
                 target_mission[int(self.node_no - 1)] = 1
                 lock.release()
@@ -272,7 +272,7 @@ def create_path(client, node_start_location, new_nodes):
     sorted_positions = sorted(obstacles, key=lambda pos: pos[0])
     min_obs = sorted_positions[0]
 
-    s_1_x = node_start_location[0] + 244
+    s_1_x = node_start_location[0] + 254
     s_1_y = node_start_location[1] + 5
 
     wall_1_extent = SM_Wall_Single[0].bounding_box.extent
@@ -291,33 +291,25 @@ def create_path(client, node_start_location, new_nodes):
     node_3 = new_nodes[2].get_location()
     node_4 = new_nodes[3].get_location()
 
-    target_path_01 = [[node_1[0] + 20, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 12, 'D'],
-                      [wall_1_x - 100, wall_1_y, 10, 'D'],
-                      [wall_1_x - 20, wall_1_y, 5, 'P'],
-                      [wall_1_x - 100, wall_1_y, 6, 'D'], [wall_2_x - 35, wall_2_y, 8, 'D'],
-                      [wall_2_x - 15, wall_2_y + 15, 12, 'D'],
-                      [wall_2_x + 285, wall_2_y + 15, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+    target_path_01 = [[node_1[0] + 20, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
+                      [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'], [wall_1_x - 70, wall_1_y, 6, 'D'], 
+                      [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 9, 'D'],
+                      [wall_2_x + 285, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 11, 'D']]
 
-    target_path_02 = [[node_2[0] + 20, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'],
-                      [wall_1_x - 169, wall_1_y, 12, 'D'],
-                      [wall_1_x - 105, wall_1_y, 10, 'D'], [wall_1_x - 25, wall_1_y, 5, 'P'],
-                      [wall_1_x - 105, wall_1_y, 6, 'D'], [wall_2_x - 40, wall_2_y, 8, 'D'],
-                      [wall_2_x - 20, wall_2_y + 15, 12, 'D'],
-                      [wall_2_x + 280, wall_2_y + 15, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+    target_path_02 = [[node_2[0] + 20, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'], [wall_1_x - 169, wall_1_y, 9, 'D'],
+                      [wall_1_x - 75, wall_1_y, 10, 'D'], [wall_1_x - 35, wall_1_y, 5, 'P'], [wall_1_x - 75, wall_1_y, 6, 'D'], 
+                      [wall_2_x - 40, wall_2_y, 7, 'D'], [wall_2_x - 20, wall_2_y + 15, 9, 'D'],
+                      [wall_2_x + 280, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
 
-    target_path_03 = [[node_3[0] + 20, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'],
-                      [wall_1_x - 164, wall_1_y + 5, 12, 'D'],
-                      [wall_1_x - 100, wall_1_y + 5, 10, 'D'], [wall_1_x - 20, wall_1_y + 5, 5, 'P'],
-                      [wall_1_x - 100, wall_1_y + 5, 6, 'D'], [wall_2_x - 35, wall_2_y + 5, 8, 'D'],
-                      [wall_2_x - 15, wall_2_y + 20, 12, 'D'],
-                      [wall_2_x + 285, wall_2_y + 20, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+    target_path_03 = [[node_3[0] + 20, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'], [wall_1_x - 164, wall_1_y + 5, 9, 'D'],
+                      [wall_1_x - 70, wall_1_y + 5, 10, 'D'], [wall_1_x - 30, wall_1_y + 5, 5, 'P'], [wall_1_x - 70, wall_1_y + 5, 6, 'D'], 
+                      [wall_2_x - 35, wall_2_y + 5, 7, 'D'], [wall_2_x - 15, wall_2_y + 20, 9, 'D'],
+                      [wall_2_x + 285, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
 
-    target_path_04 = [[node_4[0] + 20, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'],
-                      [wall_1_x - 169, wall_1_y + 5, 12, 'D'],
-                      [wall_1_x - 105, wall_1_y + 5, 10, 'D'], [wall_1_x - 25, wall_1_y + 5, 5, 'P'],
-                      [wall_1_x - 105, wall_1_y + 5, 6, 'D'], [wall_2_x - 40, wall_2_y + 5, 8, 'D'],
-                      [wall_2_x - 20, wall_2_y + 20, 12, 'D'],
-                      [wall_2_x + 280, wall_2_y + 20, 5, 'P'], [obs_x - 160, obs_y - 15, 10, 'D']]
+    target_path_04 = [[node_4[0] + 20, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'], [wall_1_x - 169, wall_1_y + 5, 9, 'D'],
+                      [wall_1_x - 75, wall_1_y + 5, 10, 'D'], [wall_1_x - 35, wall_1_y + 5, 5, 'P'], [wall_1_x - 75, wall_1_y + 5, 6, 'D'], 
+                      [wall_2_x - 40, wall_2_y + 5, 7, 'D'], [wall_2_x - 20, wall_2_y + 20, 9, 'D'],
+                      [wall_2_x + 280, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
 
     target_paths = [target_path_01, target_path_02, target_path_03, target_path_04]
     print(target_paths)
@@ -379,14 +371,14 @@ def main():
         threads = []
         # 为每个节点创建并启动一个线程
         for node in nodes:
-            thread = threading.Thread(target=control_vehicle, args=(node, 0.5))
+            thread = threading.Thread(target=control_vehicle, args=(node, 0.4))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)
         # 等待所有线程完成
         for thread in threads:
             thread.join()
-        time.sleep(16)
+        time.sleep(10)
 
         # 随机损坏一辆车（正式测试时需要注释这段代码）
         numbers = [1, 2, 3, 4, 5]
@@ -493,7 +485,7 @@ def main():
                 global target_mission
                 if sum(target_mission) == 4 and count == 0:
                     count += 1
-                    time.sleep(2)  # 任务1完成6秒后出发
+                    time.sleep(1)  # 任务1完成6秒后出发
 
                     lock.acquire()
                     target_mission[0] = 0
@@ -516,31 +508,31 @@ def main():
 
                 if sum(target_mission) == 4 and count == 1:
                     count += 1
-                    time.sleep(3)
+                    time.sleep(0.5)
                     target_mission = [0, 0, 0, 0]
 
-                if sum(target_mission) == 4 and count == 2:
-                    count += 1
-                    time.sleep(1)  # 任务1完成6秒后出发
+                # if sum(target_mission) == 4 and count == 2:
+                #     count += 1
+                #     time.sleep(1)  # 任务1完成6秒后出发
 
-                    lock.acquire()
-                    target_mission[0] = 0
-                    lock.release()
-                    time.sleep(2.5)
+                #     lock.acquire()
+                #     target_mission[0] = 0
+                #     lock.release()
+                #     time.sleep(2.5)
 
-                    lock.acquire()
-                    target_mission[2] = 0
-                    lock.release()
-                    time.sleep(2)
+                #     lock.acquire()
+                #     target_mission[2] = 0
+                #     lock.release()
+                #     time.sleep(2)
 
-                    lock.acquire()
-                    target_mission[1] = 0
-                    lock.release()
-                    time.sleep(2.5)
+                #     lock.acquire()
+                #     target_mission[1] = 0
+                #     lock.release()
+                #     time.sleep(2.5)
 
-                    lock.acquire()
-                    target_mission[3] = 0
-                    lock.release()
+                #     lock.acquire()
+                #     target_mission[3] = 0
+                #     lock.release()
 
         t1 = threading.Thread(target=vcontrol_1)
         t2 = threading.Thread(target=vcontrol_2)
