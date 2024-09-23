@@ -39,12 +39,12 @@ class Steer_PID_controller(object):
 
     def PID_control(self, target_angle):
         angle_n = self.vehicle.get_attitude()[0]
-        # print("target_angle:"+str(target_angle)+"    n_angle:"+str(angle_n))   #日志
+
         self.target_angle = target_angle  # 目标
 
         error = self.target_angle - angle_n  # 误差
         self.error_buffer.append(error)  # 将新的角度误差放入缓存区，如果缓存区满了，最左边的溢出，整体数据左移一位，新的数据加在最右边
-        print("now_angle:  " + str(angle_n) + "  target_angle:  " + str(target_angle) + "  error: " + str(error))
+       
         if len(self.error_buffer) >= 2:
             integral_error = sum(self.error_buffer) * self.d_t  # 积分误差，为了解决稳态误差
             derivative_error = (self.error_buffer[-1] - self.error_buffer[-2]) / self.d_t  # 微分误差，为了缓解超调
@@ -56,7 +56,7 @@ class Steer_PID_controller(object):
             self.error_buffer.clear()
 
         steer = self.k_p * error + self.k_i * integral_error + self.k_d * derivative_error
-        print("steer:" + str(steer))
+        #print("now_angle:  " + str(angle_n) + "  target_angle:  " + str(target_angle) + "  error: " + str(error)+"  steer:  "+str(steer))
         return steer
 
 
@@ -93,7 +93,6 @@ class Parking_PID_controller(object):  # 纵向控制
             (self.target_position[0] - location[0]) ** 2 + (self.target_position[1] - location[1]) ** 2
         )  # 距离差
 
-        print("error: " + str(error))
 
         self.error_buffer.append(error)  # 将新的速度误差放入缓存区，如果缓存区满了，最左边的溢出，整体数据左移一位，新的数据加在最右边
 
@@ -109,7 +108,7 @@ class Parking_PID_controller(object):  # 纵向控制
 
         pid_speed = self.k_p * error + self.k_i * integral_error + self.k_d * derivative_error
 
-        print(" pid_speed :" + str(pid_speed))
+        # print(" pid_speed :"+str(pid_speed)+"error: "+str(error)+"k_i * integral_error "+str( self.k_i * integral_error)+"k_d * derivative_error: "+str( self.k_d*derivative_error))
         return pid_speed, error
 
 
@@ -147,7 +146,6 @@ class Longitudinal_PID_controller(object):  # 纵向控制
 
         error = self.target_speed - v_now  # 速度误差
 
-        print("now_speed:  " + str(v_now) + "  target_speed:  " + str(target_speed) + "  error: " + str(error))
 
         self.error_buffer.append(error)  # 将新的速度误差放入缓存区，如果缓存区满了，最左边的溢出，整体数据左移一位，新的数据加在最右边
 
@@ -162,7 +160,6 @@ class Longitudinal_PID_controller(object):  # 纵向控制
             self.error_buffer.clear()
 
         u = self.k_p * error + self.k_i * integral_error + self.k_d * derivative_error
-        print("UUUUUU:" + str(u))
         return u, v_now
 
 
@@ -229,7 +226,7 @@ class Vehicle_control(object):
                 target_mission[int(self.node_no - 1)] = -1
                 lock.release()
 
-            elif target_mission[int(self.node_no - 1)] == -1 and error < 0.85:  # 初始为-1，自己完成后改为1，放行改为0
+            elif target_mission[int(self.node_no - 1)] == -1 and error < 0.83:  # 初始为-1，自己完成后改为1，放行改为0
                 lock.acquire()
                 target_mission[int(self.node_no - 1)] = 1
                 lock.release()
@@ -298,7 +295,7 @@ def avoid_obstacles(node, world):
 
     last_element = new_line[-1]
     final_last = np.array(
-        [last_element[0] + 350, last_element[1], last_element[2] + 7, last_element[3]], dtype=object
+        [last_element[0] + 350, last_element[1], last_element[2] + 5, last_element[3]], dtype=object
     ).tolist()
     new_line.append(final_last)
 
@@ -349,33 +346,27 @@ def create_path(client, node_start_location, new_nodes):
     node_2 = new_nodes[1].get_location()
     node_3 = new_nodes[2].get_location()
     node_4 = new_nodes[3].get_location()
+    step = 5.6
 
-    target_path_01 = [[node_1[0] + 10, node_1[1], 10, 'D'], [s_1_x, s_1_y, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
-                      [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'],
-                      [wall_1_x - 70, wall_1_y, 6, 'D'],
+    target_path_01 = [[node_1[0] + 20, node_1[1] - 13, 4, 'D'], [node_1[0] + 80, node_1[1] - 11, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
+                      [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'], [wall_1_x - 70, wall_1_y, 6, 'D'],
                       [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 7, 'D'],
                       [wall_2_x + 285, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 11, 'D']]
 
-    target_path_02 = [[node_2[0] + 10, node_2[1], 10, 'D'], [s_1_x - 5, s_1_y, 7, 'P'],
-                      [wall_1_x - 169, wall_1_y, 9, 'D'],
-                      [wall_1_x - 75, wall_1_y, 10, 'D'], [wall_1_x - 35, wall_1_y, 5, 'P'],
-                      [wall_1_x - 75, wall_1_y, 6, 'D'],
-                      [wall_2_x - 40, wall_2_y, 7, 'D'], [wall_2_x - 20, wall_2_y + 15, 7, 'D'],
-                      [wall_2_x + 280, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
+    target_path_02 = [[node_2[0] + 20, node_2[1] - 13, 4, 'D'], [node_1[0] + 80 - step, node_1[1] - 11, 7, 'P'], [wall_1_x - 164 - step, wall_1_y, 9, 'D'],
+                      [wall_1_x - 70 - step, wall_1_y, 10, 'D'], [wall_1_x - 30 - step, wall_1_y, 5, 'P'], [wall_1_x - 70 - step, wall_1_y, 6, 'D'],
+                      [wall_2_x - 35 - step, wall_2_y, 7, 'D'], [wall_2_x - 15 - step, wall_2_y + 15, 7, 'D'],
+                      [wall_2_x + 285 - step, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
 
-    target_path_03 = [[node_3[0] + 10, node_3[1], 10, 'D'], [s_1_x, s_1_y + 5, 7, 'P'],
-                      [wall_1_x - 164, wall_1_y + 5, 9, 'D'],
-                      [wall_1_x - 70, wall_1_y + 5, 10, 'D'], [wall_1_x - 30, wall_1_y + 5, 5, 'P'],
-                      [wall_1_x - 70, wall_1_y + 5, 6, 'D'],
-                      [wall_2_x - 35, wall_2_y + 5, 7, 'D'], [wall_2_x - 15, wall_2_y + 20, 7, 'D'],
-                      [wall_2_x + 285, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
+    target_path_03 = [[node_3[0] + 20, node_3[1] - 13, 4, 'D'], [node_1[0] + 80, node_1[1] - 11 + step, 7, 'P'], [wall_1_x - 164, wall_1_y + step, 9, 'D'],
+                      [wall_1_x - 70, wall_1_y + step, 10, 'D'], [wall_1_x - 30, wall_1_y + step, 5, 'P'], [wall_1_x - 70, wall_1_y + step, 6, 'D'],
+                      [wall_2_x - 35, wall_2_y + step, 7, 'D'], [wall_2_x - 15, wall_2_y + 15 + step, 7, 'D'],
+                      [wall_2_x + 285, wall_2_y + 15 + step, 12, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
 
-    target_path_04 = [[node_4[0] + 10, node_4[1], 10, 'D'], [s_1_x - 5, s_1_y + 5, 7, 'P'],
-                      [wall_1_x - 169, wall_1_y + 5, 9, 'D'],
-                      [wall_1_x - 75, wall_1_y + 5, 10, 'D'], [wall_1_x - 35, wall_1_y + 5, 5, 'P'],
-                      [wall_1_x - 75, wall_1_y + 5, 6, 'D'],
-                      [wall_2_x - 40, wall_2_y + 5, 7, 'D'], [wall_2_x - 20, wall_2_y + 20, 7, 'D'],
-                      [wall_2_x + 280, wall_2_y + 20, 12, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
+    target_path_04 = [[node_4[0] + 20, node_4[1] - 13, 4, 'D'], [node_1[0] + 80 - step, node_1[1] - 11 + step, 7, 'P'], [wall_1_x - 164 - step, wall_1_y + step, 9, 'D'],
+                      [wall_1_x - 70 - step, wall_1_y + step, 10, 'D'], [wall_1_x - 30 - step, wall_1_y + step, 5, 'P'], [wall_1_x - 70 - step, wall_1_y + step, 6, 'D'],
+                      [wall_2_x - 35 - step, wall_2_y + step, 7, 'D'], [wall_2_x - 15 - step, wall_2_y + 15 + step, 7, 'D'],
+                      [wall_2_x + 285 - step, wall_2_y + 15 + step, 12, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
 
     target_paths = [target_path_01, target_path_02, target_path_03, target_path_04]
     print(target_paths)
@@ -430,6 +421,19 @@ def main():
 
         def control_vehicle(node, command):
             node.control_vehicle(command)
+            time.sleep(0.01)
+
+        def set_vehicle_brake(node, command):
+            node.apply_control(0, 0, command, 0.88, 1)
+            time.sleep(0.01)
+
+        def apply_control(node, command):
+            node.apply_control(0, 0, command, 0.99, command)
+            time.sleep(0.01)
+
+        def start_control_vehicle(node, command):
+            node.apply_control(command, 0, 0, 0, 1)
+            time.sleep(0.01)
 
         node_start_location = nodes[0].get_location()
 
@@ -437,34 +441,55 @@ def main():
         threads = []
         # 为每个节点创建并启动一个线程
         for node in nodes:
-            thread = threading.Thread(target=control_vehicle, args=(node, 0.4))
+            thread = threading.Thread(target=start_control_vehicle, args=(node, 0.7))
             threads.append(thread)
             thread.start()
-            time.sleep(0.1)
+            time.sleep(0.01)
         # 等待所有线程完成
         for thread in threads:
             thread.join()
-        time.sleep(10)
+        time.sleep(3.5)
 
+
+        new_threads = []
+        for node in nodes:
+            thread = threading.Thread(target=set_vehicle_brake, args=(node, 1))
+            new_threads.append(thread)
+            thread.start()
+            time.sleep(0.01)
+        # 等待所有线程完成
+        for thread in new_threads:
+            thread.join()
+        time.sleep(2)
+
+
+        print("============")
         # 随机损坏一辆车（正式测试时需要注释这段代码）
-        # numbers = [1, 2, 3, 4, 5]
-        # selected_number = random.choice(numbers)
-        # selected_number = 5
-        # print(selected_number)
-        # for node in nodes:
-        #     if int(node.get_node_info()[1]) == selected_number:
-        #         node.set_vehicle_steer(steer=0)
-        #         time.sleep(0.2)
-        #         node.set_vehicle_brake(brake=1)
-        #         node.control_vehicle(-1)
-        #         time.sleep(3)
+        numbers = [1, 2, 3, 4, 5]
+        selected_number = random.choice(numbers)
+        print(selected_number)
+        for node in nodes:
+            if int(node.get_node_info()[1]) == selected_number:
+                node.apply_control(0, 0, 1, 0.97, 1)
 
         # 重新设置所有车辆的编号
         new_nodes = []
         for i, node in enumerate(nodes):
-            if node.get_health()[0] == 100:  # 正式测试时需要使用这个 条件
-            # if i != selected_number - 1:
+            # if node.get_health()[0] == 100:  # 正式测试时需要使用这个 条件
+            if i != selected_number - 1:
                 new_nodes.append(node)
+
+        # 将所有正常车 先减速5s
+        new_nodes_threads = []
+        for node in new_nodes:
+            thread = threading.Thread(target=apply_control, args=(node, 1))
+            new_nodes_threads.append(thread)
+            thread.start()
+            time.sleep(0.01)
+        # 等待所有线程完成
+        for thread in new_nodes_threads:
+            thread.join()
+        time.sleep(2)
 
         # 将速度拉下来，让小车保持距离
         speed = 0.38
@@ -480,8 +505,8 @@ def main():
             # 等待所有线程完成
             for future in concurrent.futures.as_completed(futures):
                 throttle_value = futures[future]
-                time.sleep(1)
-        time.sleep(1)
+                time.sleep(1.5)
+        time.sleep(1.5)
 
         with ThreadPoolExecutor(max_workers=len(new_nodes)) as executor:
             # 创建一个字典来存储 future 对象和它们对应的速度
@@ -493,7 +518,7 @@ def main():
             for future in concurrent.futures.as_completed(futures):
                 throttle_value = futures[future]
                 time.sleep(1)
-        time.sleep(2)
+        time.sleep(1)
 
         # 输出路径点和详细信息格式为[x,y,speed,D/P] D目标点后继续前进 P为目标的需要停止
         # target_path_01 = [[840, 446, 5, 'P'], [930, 439, 10, 'D'], [1110, 417, 10, 'D'],
@@ -550,7 +575,7 @@ def main():
                 time.sleep(0.01)
                 global target_mission
                 if sum(target_mission) == 4 and count == 0:
-                    count += 1
+                    
                     time.sleep(2)  # 任务1完成6秒后出发
 
                     lock.acquire()
@@ -571,11 +596,12 @@ def main():
                     lock.acquire()
                     target_mission[3] = 0
                     lock.release()
+                    count += 1
 
                 if sum(target_mission) == 4 and count == 1:
-                    count += 1
-                    time.sleep(0.01)
+                    time.sleep(0.1)
                     target_mission = [0, 0, 0, 0]
+                    count += 1
 
                 # if sum(target_mission) == 4 and count == 2:
                 #     count += 1

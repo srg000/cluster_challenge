@@ -11,7 +11,7 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 block_cipher = None
 
 
-a = Analysis(['km2_main.py'],
+a = Analysis(['test_main.py'],
              pathex=[],
              binaries=binaries,
              datas=datas,

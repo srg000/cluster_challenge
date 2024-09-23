@@ -65,7 +65,14 @@ def main():
         # location_thread.daemon = Truesd
         # location_thread.start()
 
+        timestamp, world, code = client.get_world()
+
         while True:
+            temp_obstacle = world.get_targets()
+            print('====================temp_obstacle', temp_obstacle)
+
+            print('===================== detect_hostile_list', nodes[0].detect_hostile_list())
+            
             print(type(nodes[1].get_node_info()))
             print(nodes[1].get_node_info())
             if keyboard.is_pressed('t'):
