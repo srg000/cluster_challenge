@@ -348,25 +348,26 @@ def create_path(client, node_start_location, new_nodes):
     node_4 = new_nodes[3].get_location()
     step = 5.6
 
-    target_path_01 = [[node_1[0] + 20, node_1[1] - 13, 4, 'D'], [node_1[0] + 80, node_1[1] - 11, 7, 'P'], [wall_1_x - 164, wall_1_y, 9, 'D'],
-                      [wall_1_x - 70, wall_1_y, 10, 'D'], [wall_1_x - 30, wall_1_y, 5, 'P'], [wall_1_x - 70, wall_1_y, 6, 'D'],
-                      [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 7, 'D'],
-                      [wall_2_x + 285, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 11, 'D']]
+    target_path_01 = [[node_1[0] + 20, node_1[1] - 13, 5, 'D'], [node_1[0] + 80, node_1[1] - 11, 7, 'P'], [wall_1_x - 164, wall_1_y, 15, 'D'],
+                      [wall_1_x - 70, wall_1_y, 13, 'D'], [wall_1_x - 15, wall_1_y, 6, 'P'], [wall_1_x - 70, wall_1_y, 7, 'D'],
+                      [wall_2_x - 35, wall_2_y, 7, 'D'], [wall_2_x - 15, wall_2_y + 15, 12, 'D'],
+                      [wall_2_x + 285, wall_2_y + 15, 15, 'D'], [obs_x - 160, obs_y - 15, 11, 'D']]
 
-    target_path_02 = [[node_2[0] + 20, node_2[1] - 13, 4, 'D'], [node_1[0] + 80 - step, node_1[1] - 11, 7, 'P'], [wall_1_x - 164 - step, wall_1_y, 9, 'D'],
-                      [wall_1_x - 70 - step, wall_1_y, 10, 'D'], [wall_1_x - 30 - step, wall_1_y, 5, 'P'], [wall_1_x - 70 - step, wall_1_y, 6, 'D'],
-                      [wall_2_x - 35 - step, wall_2_y, 7, 'D'], [wall_2_x - 15 - step, wall_2_y + 15, 7, 'D'],
-                      [wall_2_x + 285 - step, wall_2_y + 15, 12, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
+    target_path_02 = [[node_2[0] + 20, node_2[1] - 13, 5, 'D'], [node_1[0] + 80 - step, node_1[1] - 11, 7, 'P'], [wall_1_x - 164 - step, wall_1_y, 15, 'D'],
+                      [wall_1_x - 70 - step, wall_1_y, 13, 'D'], [wall_1_x - 15 - step, wall_1_y, 6, 'P'], [wall_1_x - 70 - step, wall_1_y, 7, 'D'],
+                      [wall_2_x - 35 - step, wall_2_y, 7, 'D'], [wall_2_x - 15 - step, wall_2_y + 15, 12, 'D'],
+                      [wall_2_x + 285 - step, wall_2_y + 15, 15, 'D'], [obs_x - 160, obs_y - 15, 9, 'D']]
 
-    target_path_03 = [[node_3[0] + 20, node_3[1] - 13, 4, 'D'], [node_1[0] + 80, node_1[1] - 11 + step, 7, 'P'], [wall_1_x - 164, wall_1_y + step, 9, 'D'],
-                      [wall_1_x - 70, wall_1_y + step, 10, 'D'], [wall_1_x - 30, wall_1_y + step, 5, 'P'], [wall_1_x - 70, wall_1_y + step, 6, 'D'],
-                      [wall_2_x - 35, wall_2_y + step, 7, 'D'], [wall_2_x - 15, wall_2_y + 15 + step, 7, 'D'],
-                      [wall_2_x + 285, wall_2_y + 15 + step, 12, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
+    target_path_03 = [[node_3[0] + 20, node_3[1] - 13, 5, 'D'], [node_1[0] + 80, node_1[1] - 11 + step, 7, 'P'], [wall_1_x - 164, wall_1_y + step, 15, 'D'],
+                      [wall_1_x - 70, wall_1_y + step, 13, 'D'], [wall_1_x - 15, wall_1_y + step, 6, 'P'], [wall_1_x - 70, wall_1_y + step, 7, 'D'],
+                      [wall_2_x - 35, wall_2_y + step, 7, 'D'], [wall_2_x - 15, wall_2_y + 15 + step, 12, 'D'],
+                      [wall_2_x + 285, wall_2_y + 15 + step, 15, 'D'], [obs_x - 160, obs_y - 15, 10, 'D']]
 
-    target_path_04 = [[node_4[0] + 20, node_4[1] - 13, 4, 'D'], [node_1[0] + 80 - step, node_1[1] - 11 + step, 7, 'P'], [wall_1_x - 164 - step, wall_1_y + step, 9, 'D'],
-                      [wall_1_x - 70 - step, wall_1_y + step, 10, 'D'], [wall_1_x - 30 - step, wall_1_y + step, 5, 'P'], [wall_1_x - 70 - step, wall_1_y + step, 6, 'D'],
-                      [wall_2_x - 35 - step, wall_2_y + step, 7, 'D'], [wall_2_x - 15 - step, wall_2_y + 15 + step, 7, 'D'],
-                      [wall_2_x + 285 - step, wall_2_y + 15 + step, 12, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
+    target_path_04 = [[node_4[0] + 20, node_4[1] - 13, 5, 'D'], [node_1[0] + 80 - step, node_1[1] - 11 + step, 7, 'P'], [wall_1_x - 164 - step, wall_1_y + step, 15, 'D'],
+                      [wall_1_x - 70 - step, wall_1_y + step, 13, 'D'], [wall_1_x - 15 - step, wall_1_y + step, 6, 'P'], [wall_1_x - 70 - step, wall_1_y + step, 7, 'D'],
+                      [wall_2_x - 35 - step, wall_2_y + step, 7, 'D'], [wall_2_x - 15 - step, wall_2_y + 15 + step, 12, 'D'],
+                      [wall_2_x + 285 - step, wall_2_y + 15 + step, 15, 'D'], [obs_x - 160, obs_y - 15, 7, 'D']]
+    target_paths = [target_path_01, target_path_02, target_path_03, target_path_04]
 
     target_paths = [target_path_01, target_path_02, target_path_03, target_path_04]
     print(target_paths)
