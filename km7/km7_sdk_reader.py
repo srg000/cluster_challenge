@@ -89,7 +89,7 @@ def main():
         timestamp, world, code = client.get_world()
         objects = world.get_environment_objects()
 
-        lupais = list(filter(lambda x: (x.name.startswith('lupai')), objects))
+        lupais = list(filter(lambda x: (x.name.startswith('Center_Point_SM')), objects))
         print(len(lupais))
         for obj in lupais:
             print(obj)

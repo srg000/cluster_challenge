@@ -76,39 +76,38 @@ def main():
         if node_no not in [11, 21]:
             print('请设置运行参数 -t ， 0 表示红队， 1 表示蓝队，示例： -t=0')
             return
-
+        run_vechicle = vehicles[2]
         while True:
-
-            print(type(vehicles[0].get_node_info()))
-            print(vehicles[0].get_node_info())
+            print(type(run_vechicle.get_node_info()))
+            print(run_vechicle.get_node_info())
             if keyboard.is_pressed('t'):
                 # speed = current_speed  [3]*3.6
                 # 0.8 55
-                vehicles[0].control_vehicle(1)
+                run_vechicle.control_vehicle(1)
             elif not keyboard.is_pressed('g'):
-                vehicles[0].control_vehicle(0)
+                run_vechicle.control_vehicle(0)
 
             if keyboard.is_pressed('g'):
-                vehicles[0].control_vehicle(-1)
+                run_vechicle.control_vehicle(-1)
             elif not keyboard.is_pressed('t'):
-                vehicles[0].control_vehicle(0)
+                run_vechicle.control_vehicle(0)
 
             if keyboard.is_pressed('k'):
-                vehicles[0].control_vehicle(0)
-                vehicles[0].set_vehicle_brake(1)
+                run_vechicle.control_vehicle(0)
+                run_vechicle.set_vehicle_brake(1)
                 print("brake", end='')
             elif not keyboard.is_pressed('k'):
-                vehicles[0].set_vehicle_brake(0)
+                run_vechicle.set_vehicle_brake(0)
 
             if keyboard.is_pressed('f'):
-                vehicles[0].set_vehicle_steer(-1)
+                run_vechicle.set_vehicle_steer(-1)
             elif not keyboard.is_pressed('h'):
-                vehicles[0].set_vehicle_steer(0)
+                run_vechicle.set_vehicle_steer(0)
 
             if keyboard.is_pressed('h'):
-                vehicles[0].set_vehicle_steer(1)
+                run_vechicle.set_vehicle_steer(1)
             elif not keyboard.is_pressed('f'):
-                vehicles[0].set_vehicle_steer(0)
+                run_vechicle.set_vehicle_steer(0)
 
             time.sleep(0.01)
 

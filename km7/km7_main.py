@@ -6,11 +6,13 @@ import time
 import math
 from collections import deque
 
+import numpy as np
 from swarmae.SwarmAEClient import SwarmAEClient
 
 # 线程锁
 lock = threading.Lock()
 target_mission = [-1, -1, -1, -1, -1]
+# 0: 红方，1: 蓝方
 team_flag = 0
 
 
@@ -32,7 +34,7 @@ class Steer_PID_controller(object):
         self.d_t = d_t  # 控制间隔
         self.target_angle = None  # 目标速度
         self.error_buffer = deque(maxlen=60)  # 设置一个误差缓存区，用于积分项和差分项的计算
-        self.error_threshold = 1  # 设定一个阈值
+        self.error_threshold = 0.2  # 设定一个阈值
 
     def PID_control(self, target_angle):
 
@@ -52,7 +54,13 @@ class Steer_PID_controller(object):
             self.error_buffer.clear()
 
         steer = self.k_p * error + self.k_i * integral_error + self.k_d * derivative_error
-        # print(" steer :" + str(steer) + "error: " + str(error) + "k_i * integral_error " + str(self.k_i * integral_error) + "k_d * derivative_error: " + str(self.k_d * derivative_error))
+        print(
+            " steer :" + str(steer) + "error: " + str(error) + "k_i * integral_error " + str(
+                self.k_i * integral_error
+            ) + "k_d * derivative_error: " + str(
+                self.k_d * derivative_error
+            )
+        )
         return steer
 
 
@@ -86,7 +94,8 @@ class Parking_PID_controller(object):  # 纵向控制
         self.target_position = target_position  # 目标速度D
 
         error = math.sqrt(
-            (self.target_position[0] - location[0]) ** 2 + (self.target_position[1] - location[1]) ** 2)  # 距离差
+            (self.target_position[0] - location[0]) ** 2 + (self.target_position[1] - location[1]) ** 2
+        )  # 距离差
 
         # if (self.target_position[0] - location[0]) < 0:
         #     error = 0 - error
@@ -136,9 +145,9 @@ class Longitudinal_PID_controller(object):  # 纵向控制
         v = self.vehicle.get_velocity()  # self.vehicle.get_velocity()
         v_now = v[3]
         global team_flag
-        if (v[1] > 0) and team_flag==0:  # 反向速度解析
+        if (v[1] > 0) and team_flag == 0:  # 红方逻辑
             v_now = 0 - v[3]
-        if (v[1] < 0) and team_flag==1:  # 反向速度解析
+        if (v[1] < 0) and team_flag == 1:  # 蓝方逻辑
             v_now = 0 - v[3]
         self.target_speed = target_speed  # 目标速度D
 
@@ -188,17 +197,17 @@ class Vehicle_control(object):
         target_angle_rad = math.atan2(end[1] - start[1], end[0] - start[0])
         target_angle_deg = math.degrees(target_angle_rad)
 
-
-        if team_flag < 1:
+        if team_flag < 1:  # 红方逻辑
             if 0 < target_angle_deg and target_angle_deg < 180:
-                return abs(target_angle_deg)-180, -1
+                return abs(target_angle_deg) - 180, -1
             else:
                 return target_angle_deg, 1
-        else:
+        else:  # 蓝方逻辑
             if 0 < target_angle_deg and target_angle_deg < 180:
                 return target_angle_deg, 1
             else:
                 return 180 - abs(target_angle_deg), -1
+
     def avoid_barrier(self, start, end, move_distance=8, avoid_distance=10):
         flag = True
         barrier_x_y = []
@@ -284,7 +293,9 @@ class Vehicle_control(object):
             new_point = (x0 + dx, y0 + dy)
             print(
                 "  start: " + str(start) + "  end: " + str(end) + "  position: " + str(position) + "  new_point" + str(
-                    new_point) + "  barrier_x_y" + str(barrier_x_y))
+                    new_point
+                ) + "  barrier_x_y" + str(barrier_x_y)
+            )
             return flag, new_point
         else:
             new_point = barrier_x_y
@@ -300,10 +311,6 @@ class Vehicle_control(object):
         location_node = self.vehicle.get_location()
 
         start = (location_node[0], location_node[1])
-
-        print(self.Path)
-        print(self.Path_index)
-
 
         target_point = self.Path[self.Path_index]
         attitude_node = self.vehicle.get_attitude()
@@ -323,25 +330,25 @@ class Vehicle_control(object):
                         self.Attack_index += 1
 
         if target_point[3] == 'D':
-            if abs(target_point[0] - (start[0])) < 7:
+            if math.sqrt((target_point[0] - (start[0])) ** 2 + (target_point[1] - (start[1])) ** 2) < 5:
                 self.Path_index += 1
-                if len(self.Path) < self.Path_index:
+                if len(self.Path) <= self.Path_index:
                     self.Path_index -= 1
             target_speed = target_point[2] * driver_mode  # 计算需要控制的最大目标速度
 
-        flag_avoid, new_point = self.avoid_barrier(start, target_point)
-
-        if flag_avoid:
-            if abs(new_point[0] - target_point[0]) < 20:  # 避让点和目标点很近则不需要再前往该目标点
-                self.Path[self.Path_index] = [new_point[0], new_point[1], target_point[2], target_point[3]]
-                target_point = self.Path[self.Path_index]
-                print(f"新的点：+{target_point}")
-                print(self.Path)
-            else:
-                self.Path.insert(self.Path_index, [new_point[0], new_point[1], target_point[2], 'D'])  # 避让点和目标点很远 则为过点
-                target_point = self.Path[self.Path_index]
-                print(f"新的途径点：+{target_point}")
-                print(self.Path)
+        # flag_avoid, new_point = self.avoid_barrier(start, target_point)
+        #
+        # if flag_avoid:
+        #     if abs(new_point[0] - target_point[0]) < 20:  # 避让点和目标点很近则不需要再前往该目标点
+        #         self.Path[self.Path_index] = [new_point[0], new_point[1], target_point[2], target_point[3]]
+        #         target_point = self.Path[self.Path_index]
+        #         print(f"新的点：+{target_point}")
+        #         print(self.Path)
+        #     else:
+        #         self.Path.insert(self.Path_index, [new_point[0], new_point[1], target_point[2], 'D'])  # 避让点和目标点很远 则为过点
+        #         target_point = self.Path[self.Path_index]
+        #         print(f"新的途径点：+{target_point}")
+        #         print(self.Path)
 
         # elif target_point[3] == 'S':
         #     pid_speed, error = self.Parking_control.PID_control(target_point)
@@ -362,7 +369,7 @@ class Vehicle_control(object):
                 node_id -= 5
             if target_mission[int(node_id) - 1] == 0:  # 收到放行指令，跳过停车点，等待下次放行任务
                 self.Path_index += 1
-                if len(self.Path) < self.Path_index:
+                if len(self.Path) <= self.Path_index:
                     self.Path_index -= 1
                 target_mission[int(node_id) - 1] = -1
 
@@ -399,6 +406,7 @@ def create_path(client, vehicles):
     lupais_SM = sdk_get_map(client, 'lupai')  # 所有路牌信息
     BU_B4_SM = sdk_get_map(client, 'BU_B4_SM')  # 道路的集装箱
     BU_B5_SM = sdk_get_map(client, 'BU_B5_SM')  # 道路的集装箱
+    Center_Point_SM = sdk_get_map(client, 'Center_Point_SM')[0]  # 中央大本营 x-89， y+10, x-110， y
 
     node_1 = vehicles[0].get_location()
     node_2 = vehicles[1].get_location()
@@ -406,63 +414,74 @@ def create_path(client, vehicles):
     node_4 = vehicles[3].get_location()
     node_5 = vehicles[4].get_location()
 
-    # # 获取小车位置信息
-    # x, y, z, frame_timestamp = vehicles[0].get_location()
-    #
-    # # 计算小车与每个路牌的距离
-    # distances = [math.sqrt((x - lupai.transform.location.x) ** 2 + (y - lupai.transform.location.y) ** 2) for
-    #              lupai in lupais_SM]
-    #
-    # # 找到最近的路牌
-    # min_distance = min(distances)
-    # min_index = distances.index(min_distance)
-    # nearest_lupai = lupais_SM[min_index]  # 获取最近的障碍物信息
-    # lupai_location = nearest_lupai.transform.location
-    # print('lupai_location', lupai_location)
-    #
-    # lupai_x = lupai_location.x + 8
-    # lupai_y = lupai_location.y
-    #
-    # step = 5
-    # gap = 1.4
+    center_x = Center_Point_SM.transform.location.x
+    center_y = Center_Point_SM.transform.location.y
 
-    # target_path_01 = [[lupai_x, lupai_y + 40, 9, 'D'], [lupai_x, lupai_y + 10, 7, 'D'], [lupai_x, lupai_y - 10, 7, 'P'],
-    #                   [lupai_x, lupai_y - 100, 7, 'D'], [lupai_x, lupai_y - 200, 7, 'D']]
-    #
-    # target_path_02 = [[lupai_x, lupai_y + 40, 9 - gap, 'D'], [lupai_x, lupai_y + 10, 7, 'D'], [lupai_x, lupai_y - 10 + step, 7, 'P'],
-    #                   [lupai_x, lupai_y - 100, 7, 'D'], [lupai_x, lupai_y - 200, 7, 'D']]
-    #
-    # target_path_03 = [[lupai_x, lupai_y + 40, 9 - gap * 2, 'D'], [lupai_x, lupai_y + 10, 7, 'D'], [lupai_x, lupai_y - 10 + step * 2, 7, 'P'],
-    #                   [lupai_x, lupai_y - 100 + step * 2, 7, 'D'], [lupai_x, lupai_y - 200, 7, 'D']]
-    #
-    # target_path_04 = [[lupai_x, lupai_y + 40, 9 - gap * 3, 'D'], [lupai_x, lupai_y + 10, 7, 'D'], [lupai_x, lupai_y - 10 + step * 3, 7, 'P'],
-    #                   [lupai_x, lupai_y - 100, 7, 'D'], [lupai_x, lupai_y - 200, 7, 'D']]
-    #
-    # target_path_05 = [[lupai_x, lupai_y + 40, 9 - gap * 4, 'D'], [lupai_x, lupai_y + 10, 7, 'D'], [lupai_x, lupai_y - 10 + step * 4, 7, 'P'],
-    #                   [lupai_x, lupai_y - 100, 7, 'D'], [lupai_x, lupai_y - 200, 7, 'D']]
+    step = 5
+    gap = 1.2
 
-    # 红方
-    # target_path_01 = [[node_1[0] + 20, node_1[1] + 50, 10, 'D'], [node_1[0] + 40, node_1[1] + 100, 10, 'P']]
-    #
-    # target_path_02 = [[node_2[0], node_2[1] - 50, 10, 'D'], [node_2[0], node_2[1] - 200, 10, 'P']]
-    #
-    # target_path_03 = [[node_3[0], node_3[1] - 50, 10, 'D'], [node_3[0], node_3[1] - 200, 10, 'P']]
-    #
-    # target_path_04 = [[node_4[0], node_4[1] - 50, 10, 'D'], [node_4[0], node_4[1] - 200, 10, 'P']]
-    #
-    # target_path_05 = [[node_5[0], node_5[1] - 50, 10, 'D'], [node_5[0], node_5[1] - 200, 10, 'P']]
+    global team_flag
+    if team_flag == 0:
+        # 红方
+        target_path_01 = [[node_3[0] - 5, node_3[1] - 200, 12, 'D'], [2544, -840, 12, 'D'], [2515, -890, 12, 'D'],
+                          [2512, -1006, 15, 'D'],
+                          [center_x, center_y - 10, 17, 'P']]
 
+        target_path_02 = [[node_3[0] - 5, node_3[1] - 200, 12, 'D'], [2544, -840, 12, 'D'], [2515, -890, 12, 'D'],
+                          [2512, -1006, 15, 'D'],
+                          [center_x + 10, center_y, 17, 'P']]
 
-    # 蓝方
-    target_path_01 = [[node_1[0] + 20, node_1[1] - 50, 10, 'D'], [node_1[0] + 30, node_1[1] - 100, 10, 'P']]
+        target_path_03 = [[node_3[0] - 5, node_3[1] - 200, 12, 'D'], [2544, -840, 12, 'D'], [2515, -890, 12, 'D'],
+                          [2512, -1006, 15, 'D'],
+                          [center_x, center_y, 17, 'P']]
 
-    target_path_02 = [[node_2[0], node_2[1] + 50, 10, 'D'], [node_2[0], node_2[1] + 100, 10, 'P']]
+        target_path_04 = [[node_3[0] - 5, node_3[1] - 200, 12, 'D'], [2544, -840, 12, 'D'], [2515, -890, 12, 'D'],
+                          [2512, -1006, 15, 'D'],
+                          [center_x - 10, center_y, 17, 'P']]
 
-    target_path_03 = [[node_3[0], node_3[1] + 50, 10, 'D'], [node_3[0], node_3[1] + 100, 10, 'P']]
+        target_path_05 = [[node_3[0] - 5, node_3[1] - 200, 12, 'D'], [2544, -840, 12, 'D'], [2515, -890, 12, 'D'],
+                          [2512, -1006, 15, 'D'],
+                          [center_x, center_y + 10, 17, 'P']]
+        # target_path_01 = [[node_5[0], node_5[1] - 340, 12, 'D'], [2544, -840, 12, 'D'], [2515, -895, 12, 'D'],
+        #                   [2462, -964, 12, 'D'], [2445, -975, 12, 'D'],
+        #                   [2410, -1001, 10, 'D'], [2377, -1020, 9, 'D'], [2377, -1050, 12, 'D'], [2421, -1059, 17, 'P']]
+        #
+        # target_path_02 = [[node_5[0] + 7, node_5[1] - 340, 12, 'D'], [2544, -840, 12, 'D'], [2515, -895, 12, 'D'],
+        #                   [2462, -964, 12, 'D'], [2445, -975, 12, 'D'],
+        #                   [2410, -1001, 10, 'D'], [2377, -1020, 9, 'D'], [2377, -1050, 12, 'D'], [2416, -1059, 16, 'P']]
+        #
+        # target_path_03 = [[node_5[0], node_5[1] - 340, 12, 'D'], [2544, -840, 12, 'D'], [2515, -895, 12, 'D'],
+        #                   [2462, -964, 12, 'D'], [2445, -975, 12, 'D'],
+        #                   [2410, -1001, 10, 'D'], [2377, -1020, 9, 'D'], [2377, -1050, 12, 'D'], [2411, -1059, 15, 'P']]
+        #
+        # target_path_04 = [[node_5[0], node_5[1] - 340, 12, 'D'], [2544, -840, 12, 'D'], [2515, -895, 12, 'D'],
+        #                   [2462, -964, 12, 'D'], [2445, -975, 12, 'D'],
+        #                   [2410, -1001, 10, 'D'], [2377, -1020, 9, 'D'], [2377, -1050, 12, 'D'], [2408, -1077, 14, 'P']]
+        #
+        # target_path_05 = [[node_5[0], node_5[1] - 340, 12, 'D'], [2544, -840, 12, 'D'], [2515, -895, 12, 'D'],
+        #                   [2462, -964, 12, 'D'], [2445, -975, 12, 'D'],
+        #                   [2410, -1001, 10, 'D'], [2377, -1020, 9, 'D'], [2377, -1050, 12, 'D'], [2408, -1065, 17, 'P']]
+    else:
+        # 蓝方
+        target_path_01 = [[2436, -1505, 6, 'D'], [2422.5, -1465, 6, 'D'], [2444.5, -1300, 17, 'D'],
+                          [2451.4, -1199, 17, 'D'], [2451.5, -1150, 17, 'D'], [2451, -1107, 6, 'D'],
+                          [2451, -1090, 6, 'D'], [2468, -1082, 10, 'D'], [2534, -1054, 10, 'P']]
 
-    target_path_04 = [[node_4[0], node_4[1] + 50, 10, 'D'], [node_4[0], node_4[1] + 100, 10, 'P']]
+        target_path_02 = [[2436, -1505, 6, 'D'], [2422.5, -1465, 6, 'D'], [2444.5, -1300, 17, 'D'],
+                          [2451.4, -1199, 17, 'D'], [2451.5, -1150, 17, 'D'], [2451, -1107, 6, 'D'],
+                          [2451, -1090, 6, 'D'], [2468, -1082, 10, 'D'], [2538, -1058, 10, 'P']]
 
-    target_path_05 = [[node_5[0], node_5[1] + 50, 10, 'D'], [node_5[0], node_5[1] + 100, 10, 'P']]
+        target_path_03 = [[2436, -1505, 6, 'D'], [2422.5, -1465, 6, 'D'], [2444.5, -1300, 17, 'D'],
+                          [2451.4, -1199, 17, 'D'], [2451.5, -1150, 17, 'D'], [2451, -1107, 6, 'D'],
+                          [2451, -1090, 6, 'D'], [2468, -1082, 10, 'D'], [2542, -1056, 10, 'P']]
+
+        target_path_04 = [[2436, -1505, 6, 'D'], [2422.5, -1465, 6, 'D'], [2444.5, -1300, 17, 'D'],
+                          [2451.4, -1199, 17, 'D'], [2451.5, -1150, 17, 'D'], [2451, -1107, 6, 'D'],
+                          [2451, -1090, 6, 'D'], [2468, -1082, 10, 'D'], [2547, -1059, 10, 'P']]
+
+        target_path_05 = [[2436, -1505, 6, 'D'], [2422.5, -1465, 6, 'D'], [2444.5, -1300, 17, 'D'],
+                          [2448.4, -1199, 17, 'D'], [2451.5, -1150, 17, 'D'], [2451, -1107, 6, 'D'],
+                          [2451, -1090, 6, 'D'], [2468, -1082, 10, 'D'], [2537, -1048, 10, 'P']]
 
     target_paths = [target_path_01, target_path_02, target_path_03, target_path_04, target_path_05]
     print(target_paths)
@@ -540,29 +559,24 @@ def main():
         team_flag = args.team
         target_paths = create_path(client, vehicles)
 
-        # # # 更改小车顺序
-        # lupai_x = lupai_location.x
-        # lupai_y = lupai_location.y
-        #
-        # # def distance_from_x(vehicle):
-        # #     return abs(lupai_x - vehicle.get_location()[0])
-        #
-        # def distance_from_x(vehicle):
-        #     x = vehicle.get_location()[0]
-        #     y = vehicle.get_location()[1]
-        #     return math.sqrt((x - lupai_x) ** 2 + (y - lupai_y) ** 2)
-        #
-        # sorted_vehicles = sorted(vehicles, key=distance_from_x)
-        # for vehicle in sorted_vehicles:
-        #     print("Vehicle {}".format(vehicle.get_node_id()))
-
-        # # 车辆控制
-        timestamp, world, code = client.get_world()
-        control_object_01 = Vehicle_control(vehicles[0], target_paths[0])
-        control_object_02 = Vehicle_control(vehicles[1], target_paths[1])
-        control_object_03 = Vehicle_control(vehicles[2], target_paths[2])
-        control_object_04 = Vehicle_control(vehicles[3], target_paths[3])
-        control_object_05 = Vehicle_control(vehicles[4], target_paths[4])
+        # 车辆控制
+        if team_flag == 0:
+            control_object_01 = Vehicle_control(vehicles[0], target_paths[0])
+            control_object_02 = Vehicle_control(vehicles[1], target_paths[1])
+            control_object_03 = Vehicle_control(vehicles[2], target_paths[2])
+            control_object_04 = Vehicle_control(vehicles[3], target_paths[3])
+            control_object_05 = Vehicle_control(vehicles[4], target_paths[4])
+        else:
+            node_y_list = [[vehicles[0].get_location()[0], 0], [vehicles[1].get_location()[0], 1],
+                           [vehicles[2].get_location()[0], 2], [vehicles[3].get_location()[0], 3],
+                           [vehicles[4].get_location()[0], 4]]
+            node_y_list = sorted(node_y_list, key=lambda x: x[0])
+            # # 车辆控制
+            control_object_01 = Vehicle_control(vehicles[node_y_list[0][1]], target_paths[0])
+            control_object_02 = Vehicle_control(vehicles[node_y_list[1][1]], target_paths[1])
+            control_object_03 = Vehicle_control(vehicles[node_y_list[2][1]], target_paths[2])
+            control_object_04 = Vehicle_control(vehicles[node_y_list[3][1]], target_paths[3])
+            control_object_05 = Vehicle_control(vehicles[node_y_list[4][1]], target_paths[4])
 
         def vcontrol_1():
             while True:
@@ -612,10 +626,14 @@ def main():
         t6 = threading.Thread(target=all_control)
 
         t1.start()
-        # t2.start()
-        # t3.start()
-        # t4.start()
-        # t5.start()
+        time.sleep(4)
+        t2.start()
+        time.sleep(6)
+        t3.start()
+        time.sleep(4)
+        t4.start()
+        time.sleep(4)
+        t5.start()
         t6.start()
 
     finally:
